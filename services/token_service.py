@@ -52,6 +52,8 @@ def create_verification_token(
     Returns:
         {"token": str, "expires_at": str (ISO-8601)}
     """
+    if not 1 <= TOKEN_TTL_SECONDS <= 120:
+        raise RuntimeError("FACE_TOKEN_TTL must be between 1 and 120 seconds.")
     now = int(time.time())
     exp = now + TOKEN_TTL_SECONDS
     payload = {

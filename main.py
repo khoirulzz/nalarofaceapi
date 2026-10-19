@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 
 from services.face_verifier import FaceVerificationError, verify_embedding
 from services.firebase_service import get_face_profile, verify_id_token
-from services.token_service import create_verification_token
+from services.token_service import create_verification_token, _get_secret, TOKEN_TTL_SECONDS
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
 
@@ -55,6 +55,10 @@ async def lifespan(app: FastAPI):
         logger.error("Missing required environment variables: %s", missing)
         raise RuntimeError(f"Missing env vars: {missing}")
 
+    _get_secret()
+    if not 1 <= TOKEN_TTL_SECONDS <= 120:
+        raise RuntimeError("FACE_TOKEN_TTL must be between 1 and 120 seconds.")
+
     logger.info(
         "Nalaro Face API starting — FACE_MATCH_THRESHOLD=%s TOKEN_TTL=%s",
         os.environ.get("FACE_MATCH_THRESHOLD", "0.72"),
@@ -88,16 +92,16 @@ app.add_middleware(
 
 
 class VerifyFaceRequest(BaseModel):
-    idToken: str = Field(..., description="Firebase ID token from the browser client.")
+    idToken: str = Field(..., min_length=1, max_length=8192, description="Firebase ID token from the browser client.")
     liveEmbedding: list[float] = Field(
-        ...,
+        ..., min_length=64, max_length=2048,
         description=(
             "Face embedding extracted in the browser by Human.js "
             "(512-dim float array)."
         ),
     )
-    attendanceId: str = Field(..., max_length=64, description="Attendance session UUID.")
-    classId: str = Field(..., max_length=64, description="Class UUID.")
+    attendanceId: str = Field(..., min_length=1, max_length=64, description="Attendance session UUID.")
+    classId: str = Field(..., min_length=1, max_length=64, description="Class UUID.")
 
 
 class VerifyFaceResponse(BaseModel):
@@ -137,7 +141,7 @@ def health():
     tags=["face"],
     summary="Verify face embedding against stored Firestore profile",
 )
-async def verify_face(payload: VerifyFaceRequest):
+def verify_face(payload: VerifyFaceRequest):
     """
     Verify that the live embedding captured by the browser matches the stored
     face profile for the authenticated user.
@@ -177,6 +181,9 @@ async def verify_face(payload: VerifyFaceRequest):
             reason="FACE_PROFILE_NOT_FOUND",
             message="Profil wajah belum didaftarkan. Daftarkan profil wajah terlebih dahulu.",
         )
+
+    if profile.get("status") != "active" or profile.get("schemaVersion") != 1 or profile.get("modelVersion") != "human-v1":
+        return VerifyFaceResponse(verified=False, similarity=0.0, reason="FACE_PROFILE_INVALID", message="Profil wajah perlu didaftarkan ulang.")
 
     stored_embedding = profile.get("embedding")
     if not stored_embedding:

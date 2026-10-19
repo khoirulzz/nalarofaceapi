@@ -99,3 +99,17 @@ def test_threshold_is_respected():
     assert result_strict["verified"] is False
     assert result_loose["verified"] is True
 
+
+@pytest.mark.parametrize('bad', [
+    [[1.0]] * 512, ['not-a-number'] * 512, [True] * 512,
+    [0.0] * 512, [101.0] * 512, [1.0] * 2049,
+])
+def test_malformed_vectors_raise_domain_error(bad):
+    with pytest.raises(FaceVerificationError) as exc:
+        verify_embedding(bad, [1.0] * 512)
+    assert exc.value.code == 'INVALID_EMBEDDING'
+
+@pytest.mark.parametrize('threshold', [0, -1, 1.1, float('nan')])
+def test_invalid_threshold_is_rejected(threshold):
+    with pytest.raises(FaceVerificationError):
+        verify_embedding([1.0] * 512, [1.0] * 512, threshold=threshold)

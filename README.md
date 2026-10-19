@@ -84,3 +84,14 @@ API docs (dev only, set ENABLE_DOCS=1): `http://localhost:8000/docs`
 - Tokens expire in 60 seconds — replay attacks are limited to that window.
 - No images or raw biometric data are stored on this server.
 
+
+## Integration checks
+
+- `ALLOWED_ORIGINS` must include `https://class.nalaro.digital`, `https://nalaroclass.pages.dev`, and `https://nalaro.web.id` when overriding the defaults.
+- Firebase Authentication Authorized domains must also include all frontend hostnames (without scheme). Python CORS does not configure Firebase or Worker CORS.
+- The Worker validates HS256, issuer, uid, attendanceId, classId, expiry, and a maximum 120-second lifetime. Keep `FACE_TOKEN_TTL` at 60 seconds (allowed range 1–120).
+- Stored profiles must have `status: active`, `schemaVersion: 1`, and `modelVersion: human-v1`. Vectors must be finite, nonzero numeric arrays of 64–2048 values within ±100, matching browser enrollment limits.
+- Firebase/Firestore synchronous I/O runs in FastAPI's threadpool so verification does not block health checks.
+- Run `pip install -r requirements-dev.txt` then `python -m pytest -q`.
+
+This migration moves the comparison and attendance proof to the server. The model and cosine threshold remain the same as the browser; accuracy improvements require calibrated genuine/impostor testing. Browser-supplied embeddings and movement challenges alone do not provide independent server-side liveness proof.
