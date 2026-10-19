@@ -1,0 +1,19 @@
+# Nalaro Face API — Python dependencies
+# Target: Render Free Tier (512 MB RAM)
+# Strategy: browser sends embedding (Human.js), server only does cosine similarity + JWT
+# — no heavy ML model needed server-side.
+
+fastapi==0.115.4
+uvicorn[standard]==0.32.0
+pydantic==2.9.2
+
+# Firebase Admin SDK (Firestore + Auth token verification)
+firebase-admin==6.6.0
+
+# JWT — PyJWT for signing/verifying HS256 tokens
+PyJWT==2.9.0
+cryptography==43.0.3
+
+# Lightweight numerics for cosine similarity
+numpy==1.26.4
+
